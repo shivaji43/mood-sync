@@ -11,6 +11,7 @@
   "dependencies": {
     "cookies": "^0.9.1",
     "cookies-next": "^5.1.0",
+    "js-cookie": "^3.0.5",
     "next": "15.1.7",
     "next-client-cookies": "^2.0.1",
     "react": "^19.0.0",
@@ -19,6 +20,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@types/js-cookie": "^3.0.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

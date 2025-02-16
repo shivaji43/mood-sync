@@ -1,84 +1,159 @@
-"use client"
+import React from "react";
+import { cookies } from 'next/headers';
 
-import React, { useEffect, useState } from "react";
-import {useCookies} from 'next-client-cookies';
-
-
-
-interface SpotifyProfile {
-    display_name: string;
-    id: string;
-    email: string;
-    // add more fields from the API response if needed
+interface SpotifyImage {
+    url: string;
+    height: number;
+    width: number;
 }
 
-const ProfilePage: React.FC = () => {
-    const [profile, setProfile] = useState<SpotifyProfile | null>(null);
-    const [error, setError] = useState<string>("");
-    const [loading, setLoading] = useState<boolean>(true);
-    const cookies = useCookies();
+interface SpotifyProfile {
+    country: string;
+    display_name: string;
+    email: string;
+    explicit_content: {
+        filter_enabled: boolean;
+        filter_locked: boolean;
+    };
+    external_urls: {
+        spotify: string;
+    };
+    followers: {
+        href: string | null;
+        total: number;
+    };
+    href: string;
+    id: string;
+    images: SpotifyImage[];
+    product: string;
+    type: string;
+    uri: string;
+}
 
-    // Utility function to get a cookie by name
-    const spotify_token = cookies.get('spotify_access_token');
+async function getSpotifyProfile() {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('spotify_access_token');
 
-    useEffect(() => {
-        const fetchSpotifyProfile = async () => {
-            const token = spotify_token;
-            if (!token) {
-                setError("Spotify access token not found in cookies.");
-                setLoading(false);
-                return;
-            }
-
-            try {
-                const response = await fetch("https://api.spotify.com/v1/me", {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch profile: ${response.statusText}`);
-                }
-
-                const data = await response.json();
-                setProfile(data);
-            } catch (err: any) {
-                setError(err.message);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchSpotifyProfile();
-    }, []);
-
-    if (loading) {
-        return <div>Loading...</div>;
+    if (!token) {
+        throw new Error("Login required");
     }
 
-    if (error) {
-        return <div>Error: {error}</div>;
+    const response = await fetch("https://api.spotify.com/v1/me", {
+        headers: {
+            Authorization: `Bearer ${token.value}`,
+        },
+        cache: 'no-store'
+    });
+
+    if (!response.ok) {
+        throw new Error(`Failed to fetch profile: ${response.statusText}`);
+    }
+
+    return response.json();
+}
+
+export default async function ProfilePage() {
+    let profile: SpotifyProfile;
+    
+    try {
+        profile = await getSpotifyProfile();
+    } catch (error) {
+        return (
+            <div className="min-h-screen p-8">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <h2 className="text-black text-lg font-semibold mb-2">Error</h2>
+                    <p className="text-black">
+                        {error instanceof Error ? error.message : 'Failed to load profile'}
+                    </p>
+                </div>
+            </div>
+        );
     }
 
     return (
-        <div>
-            <h1>Spotify Profile</h1>
-            {profile && (
-                <div>
-                    <p>
-                        <strong>Name:</strong> {profile.display_name}
-                    </p>
-                    <p>
-                        <strong>ID:</strong> {profile.id}
-                    </p>
-                    <p>
-                        <strong>Email:</strong> {profile.email}
-                    </p>
+        <div className="min-h-screen p-8">
+            <div className="max-w-4xl mx-auto space-y-6">
+                <div className="bg-white shadow rounded-lg p-6">
+                    <div className="flex items-start space-x-6">
+                        {profile.images && profile.images[0] && (
+                            <img
+                                src={profile.images[0].url}
+                                alt={profile.display_name}
+                                className="w-32 h-32 rounded-full"
+                            />
+                        )}
+                        <div className="flex-1">
+                            <h1 className="text-2xl text-black font-bold mb-2">{profile.display_name}</h1>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <p className="text-sm text-black">Email</p>
+                                    <p className="font-medium text-black">{profile.email}</p>
+                                </div>
+                                <div>
+                                    <p className="text-sm text-black">Country</p>
+                                    <p className="font-medium text-black">{profile.country}</p>
+                                </div>
+                                <div>
+                                    <p className="text-sm text-black">Followers</p>
+                                    <p className="font-medium text-black">{profile.followers.total}</p>
+                                </div>
+                                <div>
+                                    <p className="text-sm text-black">Account Type</p>
+                                    <p className="font-medium text-black capitalize">{profile.product}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="bg-white shadow rounded-lg p-6">
+                        <h2 className="text-lg text-black font-semibold mb-4">Profile Details</h2>
+                        <div className="space-y-3">
+                            <div>
+                                <p className="text-sm text-black">Spotify URI</p>
+                                <p className="font-mono text-black text-sm">{profile.uri}</p>
+                            </div>
+                            <div>
+                                <p className="text-sm text-black">Profile URL</p>
+                                <a 
+                                    href={profile.external_urls.spotify}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-black hover:underline"
+                                >
+                                    Open in Spotify
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white shadow rounded-lg p-6">
+                        <h2 className="text-lg text-black font-semibold mb-4">Content Settings</h2>
+                        <div className="space-y-3">
+                            <div>
+                                <p className="text-sm text-black">Explicit Content Filter</p>
+                                <p className="font-medium text-black">
+                                    {profile.explicit_content.filter_enabled ? 'Enabled' : 'Disabled'}
+                                </p>
+                            </div>
+                            <div>
+                                <p className="text-sm text-black">Filter Lock</p>
+                                <p className="font-medium text-black">
+                                    {profile.explicit_content.filter_locked ? 'Locked' : 'Unlocked'}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-white shadow rounded-lg p-6">
+                    <h2 className="text-lg text-black font-semibold mb-4">Raw Profile Data</h2>
+                    <pre className="bg-gray-100 p-4 text-black rounded-lg overflow-auto max-h-96 text-sm">
+                        {JSON.stringify(profile, null, 2)}
+                    </pre>
+                </div>
+            </div>
         </div>
     );
-};
-
-export default ProfilePage;
+}
